@@ -6,7 +6,6 @@ import struct
 from dataclasses import dataclass
 from enum import Enum
 from collections import deque
-from macho import write_macho
 
 
 def strip_comments(s): return s.split('//')[0].strip()
@@ -54,7 +53,3 @@ if __name__ == '__main__':
     #     a = lex(s)
 
     #     Parser(a).parse()
-
-    outfile = 'out.o'
-
-    write_macho(outfile)

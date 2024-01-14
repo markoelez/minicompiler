@@ -5,7 +5,7 @@ rm out
 
 clear
 
-./assembler.py
+./macho.py
 
 otool -h out.o
 

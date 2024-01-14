@@ -1,9 +1,10 @@
+#!/usr/bin/env python3
 
 import struct
-from abc import abstractmethod
-from dataclasses import dataclass
-from pprint import pprint, pformat
+from dataclasses import dataclass, field
+from pprint import pprint
 from enum import Enum
+from collections import defaultdict
 
 
 # Constants.
@@ -12,7 +13,7 @@ LC_BUILD_VERSION = 0x32
 MH_MAGIC_64 = 0xfeedfacf                # Mach-O 64-bit magic number
 CPU_TYPE_ARM64 = 0x0100000c             # CPU type ARM64
 CPU_SUBTYPE_ARM64_ALL = 0x00000000      # ARM64 subtype for all ARM64 CPUs
-MH_OBJECT = 0x1                         # File type: Object file
+MH_OBJECT = 0x1                         # File type: object file
 MH_FLAGS = 0                            # No flags set
 MH_SUBSECTIONS_VIA_SYMBOLS = 0x2000
 VM_PROT_READ = 0x01
@@ -21,6 +22,7 @@ S_REGULAR = 0x0
 S_ATTR_PURE_INSTRUCTIONS = 0x80000000
 S_ATTR_SOME_INSTRUCTIONS = 0x40000000
 LC_SYMTAB = 0x2
+N_TYPE = 0x0e
 N_SECT = 0x0e
 N_EXT = 0x01
 N_UNDF = 0x0
@@ -39,9 +41,8 @@ class DTYPE(Enum):
     char_16b = '16s'  # 16 bytes
 
 
-class Obj:
+class Component:
     def pack(self):
-        b = 'Nlist64' in self.__class__.__name__
         s, vals = '', []
         for k, v in self.__annotations__.items():
             s += v.value
@@ -66,7 +67,7 @@ def dbg(o):
 
 
 @dataclass(repr=False)
-class Header(Obj):
+class Header(Component):
     magic: DTYPE.uint32_t = 0
     cputype: DTYPE.uint32_t = 0
     cpusubtype: DTYPE.uint32_t = 0
@@ -78,8 +79,8 @@ class Header(Obj):
 
 
 @dataclass(repr=False)
-class Segment(Obj):
-    cmd: DTYPE.uint32_t = 0
+class Segment(Component):
+    cmd: DTYPE.uint32_t = LC_SEGMENT_64
     cmdsize: DTYPE.uint32_t = 0
     segname: DTYPE.char_16b = ''
     vmaddr: DTYPE.uint64_t = 0
@@ -93,7 +94,7 @@ class Segment(Obj):
 
 
 @dataclass(repr=False)
-class Section(Obj):
+class Section(Component):
     sectname: DTYPE.char_16b = ''
     segname: DTYPE.char_16b = ''
     addr: DTYPE.uint64_t = 0
@@ -109,8 +110,8 @@ class Section(Obj):
 
 
 @dataclass(repr=False)
-class SymtabCmd(Obj):
-    cmd: DTYPE.uint32_t = 0
+class SymtabCmd(Component):
+    cmd: DTYPE.uint32_t = LC_SYMTAB
     cmdsize: DTYPE.uint32_t = 0
     symoff: DTYPE.uint32_t = 0
     nsyms: DTYPE.uint32_t = 0
@@ -119,8 +120,8 @@ class SymtabCmd(Obj):
 
 
 @dataclass(repr=False)
-class BuildCmd(Obj):
-    cmd: DTYPE.uint32_t = 0
+class BuildCmd(Component):
+    cmd: DTYPE.uint32_t = LC_BUILD_VERSION
     cmdsize: DTYPE.uint32_t = 0
     platform: DTYPE.uint32_t = 0
     minos: DTYPE.uint32_t = 0
@@ -129,8 +130,8 @@ class BuildCmd(Obj):
 
 
 @dataclass(repr=False)
-class DysymtabCmd(Obj):
-    cmd: DTYPE.uint32_t = 0
+class DysymtabCmd(Component):
+    cmd: DTYPE.uint32_t = LC_DYSYMTAB
     cmdsize: DTYPE.uint32_t = 0
     ilocalsym: DTYPE.uint32_t = 0
     nlocalsym: DTYPE.uint32_t = 0
@@ -153,7 +154,7 @@ class DysymtabCmd(Obj):
 
 
 @dataclass(repr=False)
-class Nlist64(Obj):
+class Nlist64(Component):
     n_strx: DTYPE.uint32_t = 0
     n_type: DTYPE.uint8_t = 0
     n_sect: DTYPE.uint8_t = 0
@@ -162,7 +163,31 @@ class Nlist64(Obj):
 
 
 @dataclass(repr=False)
-class RelocInfo(Obj):
+class GenericDataSegment(Component):
+    dat: bytes = bytes()
+
+    def pack(self):
+        return self.dat
+
+    def bsize(self) -> int:
+        return len(self.dat)
+
+
+@dataclass(repr=False)
+class StringTableSegment(Component):
+    table: list[str] = field(default_factory=list)
+
+    def pack(self):
+        t = '\0'.join(self.table)
+        if t: t = '\0' + t
+        return t.encode()
+
+    def bsize(self) -> int:
+        return len(self.pack())
+
+
+@dataclass(repr=False)
+class RelocInfo(Component):
     r_address: DTYPE.uint32_t = 0
     r_info: DTYPE.uint32_t = 0
 
@@ -172,64 +197,161 @@ def build_reloc_info(r_address: int, r_symbolnum: int, r_pcrel: int, r_length: i
     return RelocInfo(r_address, r_info)
 
 
-def write_macho(p: str):
+class MachoObjectBuilder:
+    def __init__(self):
+        self.header: Header | None = None
+        self.load_commands: list[Component] = []
+        self.segments_by_segname: dict[str, Segment] = {}
+        self.sections_by_segname: defaultdict[str, list[Section]] = defaultdict(list)
 
-    # **************************** init ****************************
+        # data
+        self.data_segments: list[Component] = []
+        self.symbols: list[Nlist64] = []
+        self.str_table: bytes = bytes()
+        self.code: bytes = bytes()
 
-    h = Header(
-        magic=MH_MAGIC_64,
-        cputype=CPU_TYPE_ARM64,
-        cpusubtype=CPU_SUBTYPE_ARM64_ALL,
-        filetype=MH_OBJECT,
-        ncmds=0,
-        sizeofcmds=0,
-        flags=0  # MH_SUBSECTIONS_VIA_SYMBOLS,
+    def add_header(self, flags: int = 0):
+        assert self.header is None
+
+        self.header = Header(
+            magic=MH_MAGIC_64,
+            cputype=CPU_TYPE_ARM64,
+            cpusubtype=CPU_SUBTYPE_ARM64_ALL,
+            filetype=MH_OBJECT,
+            ncmds=0,
+            sizeofcmds=0,
+            flags=flags
+        )
+
+    def add_segment_lc(self, segname: str = '', **kwargs):
+        lc = Segment(
+            segname=segname,
+            maxprot=VM_PROT_READ | VM_PROT_EXECUTE,
+            initprot=VM_PROT_READ | VM_PROT_EXECUTE,
+            **kwargs
+        )
+        self.segments_by_segname[segname] = lc
+        self.load_commands.append(lc)
+
+    def add_section_lc(self, sectname: str = '', segname: str = '', align: int = 2, **kwargs):
+        assert segname in self.segments_by_segname
+        flags = S_REGULAR | S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS
+        lc = Section(
+            sectname=sectname,
+            segname=segname,
+            align=align,
+            flags=flags,
+            **kwargs
+        )
+        self.sections_by_segname[segname].append(lc)
+
+    def add_build_version_lc(self, **kwargs):
+        lc = BuildCmd(**kwargs)
+        self.load_commands.append(lc)
+
+    def add_symtab_lc(self, **kwargs):
+        lc = SymtabCmd(**kwargs)
+        self.load_commands.append(lc)
+
+    def add_dysymtab_lc(self, **kwargs):
+        lc = DysymtabCmd(**kwargs)
+        self.load_commands.append(lc)
+
+    def add_code(self, dat: bytes):
+        ds = GenericDataSegment(dat=dat)
+        self.code = dat
+        self.data_segments.append(ds)
+
+    def add_symbol_table(self, symbols: list[Nlist64] = []):
+        self.symbols.extend(symbols)
+        self.data_segments.extend(symbols)
+
+    def add_string_table(self, table: list[str]):
+        ds = StringTableSegment(table)
+        self.str_table = ds.pack()
+        self.data_segments.append(ds)
+
+    def build(self) -> bytes:
+
+        res = bytes()
+        components = []
+
+        # **************************** write header ****************************
+        assert self.header is not None
+        self.header.ncmds = len(self.load_commands)
+        self.header.sizeofcmds = 0
+        self.header.sizeofcmds += sum(x.bsize() for x in self.load_commands)
+        # Add associated sections.
+        self.header.sizeofcmds += sum([s.bsize() for lc in self.load_commands if hasattr(lc, 'segname') for s in self.sections_by_segname[lc.segname]])
+        res += self.header.pack()
+
+        # **************************** write load commands ****************************
+        for lc in self.load_commands:
+            match lc:
+                case Segment():
+                    assert lc.segname in self.sections_by_segname
+                    secs = self.sections_by_segname[lc.segname]
+                    lc.cmdsize = lc.bsize() + sum(x.bsize() for x in secs)
+                    lc.filesize = len(self.code)  # TODO: make this better
+                    lc.vmsize = lc.filesize
+                    lc.fileoff = self.header.sizeofcmds + self.header.bsize()
+                    lc.nsects = 1
+                    components.append(lc)
+
+                    # Sections associated with segment.
+                    offset = self.header.sizeofcmds + self.header.bsize()
+                    for sec in secs:
+                        sec.size = len(self.code)  # TODO: make this better
+                        sec.offset = offset
+                        sec.reloff = offset + lc.filesize
+                        sec.nreloc = 0  # TODO
+                        offset += sec.size
+                        components.append(sec)
+                        self.header.sizeofcmds += sec.bsize()
+
+                case BuildCmd():
+                    lc.cmdsize = lc.bsize()
+                    components.append(lc)
+
+                case SymtabCmd():
+                    lc.cmdsize = lc.bsize()
+                    lc.symoff = offset
+                    lc.nsyms = len(self.symbols)
+                    lc.stroff = lc.symoff + sum(x.bsize() for x in self.symbols)
+                    lc.strsize = len(self.str_table)
+                    components.append(lc)
+
+                case DysymtabCmd():
+                    lc.cmdsize = lc.bsize()
+                    components.append(lc)
+
+        for lc in components: res += lc.pack()
+
+        # **************************** write data ****************************
+        for ds in self.data_segments:
+            res += ds.pack()
+
+        return res
+
+
+if __name__ == '__main__':
+
+    b = MachoObjectBuilder()
+    b.add_header()
+    # load commands
+    b.add_segment_lc(segname='__TEXT')
+    b.add_section_lc(sectname='__text', segname='__TEXT')
+    b.add_build_version_lc(platform=0x1, minos=0xe0000)
+    b.add_symtab_lc()
+    b.add_dysymtab_lc(
+        ilocalsym=0,
+        nlocalsym=2,
+        iextdefsym=2,
+        nextdefsym=0,
+        iundefsym=2,
     )
-
-    seg = Segment(
-        cmd=LC_SEGMENT_64,
-        cmdsize=0,
-        segname='',  # __TEXT',
-        vmaddr=0,
-        vmsize=0,
-        fileoff=0,
-        filesize=0,
-        maxprot=0x00000007,  # VM_PROT_READ | VM_PROT_EXECUTE,
-        initprot=0x00000007,  # VM_PROT_READ | VM_PROT_EXECUTE,
-        nsects=2,
-    )
-
-    sec = Section(
-        sectname='__text',
-        segname='__TEXT',
-        addr=0,
-        size=0,
-        offset=0,
-        align=2,
-        reloff=0,
-        nreloc=0,
-        flags=0x80000400  # S_REGULAR | S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS
-    )
-
-    build_cmd = BuildCmd(
-        cmd=LC_BUILD_VERSION,
-        cmdsize=0,
-        platform=0x1,
-        minos=0xe0000,
-        sdk=0,
-        ntools=0
-    )
-
-    symtab_cmd = SymtabCmd(
-        cmd=LC_SYMTAB,
-        cmdsize=0,
-        symoff=0,
-        nsyms=0,
-        stroff=0,
-        strsize=0,
-    )
-
-    code = bytes([
+    # data segments
+    b.add_code(dat=bytes([
         0x20, 0x00, 0x80, 0xd2,
         0xe1, 0x00, 0x00, 0x10,
         0xc2, 0x01, 0x80, 0xd2,
@@ -242,103 +364,24 @@ def write_macho(p: str):
         0x6f, 0x2c, 0x20, 0x57,
         0x6f, 0x72, 0x6c, 0x64,
         0x21, 0x0a, 0x00, 0x00
-    ])
-
-    str_table = bytes([
-        0x00, 0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x00, 0x6c, 0x74, 0x6d, 0x70, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    ])
-
-    symbols = [
+    ]))
+    b.add_symbol_table(symbols=[
         Nlist64(
-            n_strx=0x13,
-            n_type=0x0e,
+            n_strx=1,
+            n_type=N_TYPE | N_EXT,
             n_sect=1,
             n_desc=0,
             n_value=0
         ),
         Nlist64(
             n_strx=8,
-            n_type=0x0e,
+            n_type=N_TYPE,
             n_sect=1,
             n_desc=0,
             n_value=0
         ),
-        Nlist64(
-            n_strx=1,
-            n_type=0x0f,
-            n_sect=1,
-            n_desc=0,
-            n_value=0
-        ),
-    ]
+    ])
+    b.add_string_table(table=['_start', 'helloworld'])
+    o = b.build()
 
-    dysymtab_cmd = DysymtabCmd(
-        cmd=LC_DYSYMTAB,
-        cmdsize=0,
-        ilocalsym=0,
-        nlocalsym=2,
-        iextdefsym=2,
-        nextdefsym=1,
-        iundefsym=3
-    )
-
-    reloc = [
-        # build_reloc_info(1, 1, 1, 2, 1, GENERIC_RELOC_SECTDIFF),
-        # build_reloc_info(6, 0, 1, 2, 1, GENERIC_RELOC_SECTDIFF)
-    ]
-
-    # **************************** write ****************************
-
-    d = bytes()
-
-    # Write header.
-    h.ncmds = 4
-    h.sizeofcmds = seg.bsize() + sec.bsize() + build_cmd.bsize() + symtab_cmd.bsize() + dysymtab_cmd.bsize()
-    d += h.pack()
-
-    # Write segment.
-    seg.cmdsize = seg.bsize() + sec.bsize()
-    seg.filesize = len(code)
-    seg.vmsize = seg.filesize
-    seg.fileoff = h.sizeofcmds + h.bsize()
-    seg.nsects = 1
-    d += seg.pack()
-
-    # Write section.
-    sec.size = seg.filesize
-    sec.offset = seg.fileoff
-    sec.reloff = seg.fileoff + seg.filesize
-    sec.nreloc = len(reloc)
-    d += sec.pack()
-
-    # Write build command.
-    build_cmd.cmdsize = build_cmd.bsize()
-    d += build_cmd.pack()
-
-    # Write symtab.
-    symtab_cmd.cmdsize = symtab_cmd.bsize()
-    symtab_cmd.symoff = h.sizeofcmds + sec.bsize() + sum(x.bsize() for x in reloc)
-    symtab_cmd.nsyms = len(symbols)
-    symtab_cmd.stroff = symtab_cmd.symoff + sum(x.bsize() for x in symbols)
-    symtab_cmd.strsize = len(str_table)
-    d += symtab_cmd.pack()
-
-    # Write dysymtab.
-    dysymtab_cmd.cmdsize = dysymtab_cmd.bsize()
-    d += dysymtab_cmd.pack()
-
-    # Write code.
-    d += code
-
-    # Write relocations.
-    for x in reloc:
-        d += x.pack()
-
-    # Write symbol table.
-    for x in symbols:
-        d += x.pack()
-
-    # Write string table.
-    d += str_table
-
-    with open(p, 'wb') as fp: fp.write(d)
+    with open('out.o', 'wb') as fp: fp.write(o)
