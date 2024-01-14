@@ -227,14 +227,14 @@ def write_macho(p: str):
 
     symbols = [
         Nlist64(
-            n_strx=32,
+            n_strx=1,
             n_type=N_SECT | N_EXT,
             n_sect=1,
             n_desc=REFERENCE_FLAG_DEFINED,
-            n_value=0
+            n_value=4 * 5 + 2,
         ),
         Nlist64(
-            n_strx=1,
+            n_strx=12,
             n_type=N_UNDF | N_EXT,
             n_sect=NO_SECT,
             n_desc=REFERENCE_FLAG_UNDEFINED_NON_LAZY,
