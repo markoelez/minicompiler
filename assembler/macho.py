@@ -8,6 +8,7 @@ from enum import Enum
 
 # Constants.
 LC_SEGMENT_64 = 0x00000019              # LC_SEGMENT_64 command type
+LC_BUILD_VERSION = 0x32
 MH_MAGIC_64 = 0xfeedfacf                # Mach-O 64-bit magic number
 CPU_TYPE_ARM64 = 0x0100000c             # CPU type ARM64
 CPU_SUBTYPE_ARM64_ALL = 0x00000000      # ARM64 subtype for all ARM64 CPUs
@@ -40,6 +41,7 @@ class DTYPE(Enum):
 
 class Obj:
     def pack(self):
+        b = 'Nlist64' in self.__class__.__name__
         s, vals = '', []
         for k, v in self.__annotations__.items():
             s += v.value
@@ -117,6 +119,16 @@ class SymtabCmd(Obj):
 
 
 @dataclass(repr=False)
+class BuildCmd(Obj):
+    cmd: DTYPE.uint32_t = 0
+    cmdsize: DTYPE.uint32_t = 0
+    platform: DTYPE.uint32_t = 0
+    minos: DTYPE.uint32_t = 0
+    sdk: DTYPE.uint32_t = 0
+    ntools: DTYPE.uint32_t = 0
+
+
+@dataclass(repr=False)
 class DysymtabCmd(Obj):
     cmd: DTYPE.uint32_t = 0
     cmdsize: DTYPE.uint32_t = 0
@@ -153,11 +165,6 @@ class Nlist64(Obj):
 class RelocInfo(Obj):
     r_address: DTYPE.uint32_t = 0
     r_info: DTYPE.uint32_t = 0
-#    r_symbolnum:24
-#    r_pcrel:1
-#    r_length:2
-#    r_extern:1
-#    r_type:4
 
 
 def build_reloc_info(r_address: int, r_symbolnum: int, r_pcrel: int, r_length: int, r_extern: int, r_type: int) -> RelocInfo:
@@ -176,32 +183,41 @@ def write_macho(p: str):
         filetype=MH_OBJECT,
         ncmds=0,
         sizeofcmds=0,
-        flags=MH_SUBSECTIONS_VIA_SYMBOLS,
+        flags=0  # MH_SUBSECTIONS_VIA_SYMBOLS,
     )
 
     seg = Segment(
         cmd=LC_SEGMENT_64,
         cmdsize=0,
-        segname='__TEXT',
+        segname='',  # __TEXT',
         vmaddr=0,
         vmsize=0,
         fileoff=0,
         filesize=0,
-        maxprot=VM_PROT_READ | VM_PROT_EXECUTE,
-        initprot=VM_PROT_READ | VM_PROT_EXECUTE,
+        maxprot=0x00000007,  # VM_PROT_READ | VM_PROT_EXECUTE,
+        initprot=0x00000007,  # VM_PROT_READ | VM_PROT_EXECUTE,
         nsects=2,
     )
 
     sec = Section(
         sectname='__text',
-        segname=seg.segname,
+        segname='__TEXT',
         addr=0,
         size=0,
         offset=0,
-        align=4,
+        align=2,
         reloff=0,
         nreloc=0,
-        flags=S_REGULAR | S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS
+        flags=0x80000400  # S_REGULAR | S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS
+    )
+
+    build_cmd = BuildCmd(
+        cmd=LC_BUILD_VERSION,
+        cmdsize=0,
+        platform=0x1,
+        minos=0xe0000,
+        sdk=0,
+        ntools=0
     )
 
     symtab_cmd = SymtabCmd(
@@ -214,30 +230,44 @@ def write_macho(p: str):
     )
 
     code = bytes([
-        0xE8, 0x00, 0x00, 0x00, 0x00,
-        0xE8, 0x00, 0x00, 0x00, 0x00,
-        0xB8, 0x01, 0x00, 0x00, 0x02,
-        0xBF, 0x00, 0x00, 0x00, 0x00,
-        0x0F, 0x05,
-        0x48, 0x31, 0xC0,
-        0xC3
+        0x20, 0x00, 0x80, 0xd2,
+        0xe1, 0x00, 0x00, 0x10,
+        0xc2, 0x01, 0x80, 0xd2,
+        0x90, 0x00, 0x80, 0xd2,
+        0x01, 0x10, 0x00, 0xd4,
+        0x00, 0x00, 0x80, 0xd2,
+        0x30, 0x00, 0x80, 0xd2,
+        0x01, 0x10, 0x00, 0xd4,
+        0x48, 0x65, 0x6c, 0x6c,
+        0x6f, 0x2c, 0x20, 0x57,
+        0x6f, 0x72, 0x6c, 0x64,
+        0x21, 0x0a, 0x00, 0x00
     ])
 
-    str_table: bytes = "\0_someFunc0\0_someFuncExternal0\0".encode('utf-8')
+    str_table = bytes([
+        0x00, 0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x00, 0x6c, 0x74, 0x6d, 0x70, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    ])
 
     symbols = [
         Nlist64(
-            n_strx=1,
-            n_type=N_SECT | N_EXT,
+            n_strx=0x13,
+            n_type=0x0e,
             n_sect=1,
-            n_desc=REFERENCE_FLAG_DEFINED,
-            n_value=4 * 5 + 2,
+            n_desc=0,
+            n_value=0
         ),
         Nlist64(
-            n_strx=12,
-            n_type=N_UNDF | N_EXT,
-            n_sect=NO_SECT,
-            n_desc=REFERENCE_FLAG_UNDEFINED_NON_LAZY,
+            n_strx=8,
+            n_type=0x0e,
+            n_sect=1,
+            n_desc=0,
+            n_value=0
+        ),
+        Nlist64(
+            n_strx=1,
+            n_type=0x0f,
+            n_sect=1,
+            n_desc=0,
             n_value=0
         ),
     ]
@@ -246,15 +276,15 @@ def write_macho(p: str):
         cmd=LC_DYSYMTAB,
         cmdsize=0,
         ilocalsym=0,
-        nlocalsym=1,
-        iextdefsym=1,
+        nlocalsym=2,
+        iextdefsym=2,
         nextdefsym=1,
-        iundefsym=2
+        iundefsym=3
     )
 
     reloc = [
-        build_reloc_info(1, 1, 1, 2, 1, GENERIC_RELOC_SECTDIFF),
-        build_reloc_info(6, 0, 1, 2, 1, GENERIC_RELOC_SECTDIFF)
+        # build_reloc_info(1, 1, 1, 2, 1, GENERIC_RELOC_SECTDIFF),
+        # build_reloc_info(6, 0, 1, 2, 1, GENERIC_RELOC_SECTDIFF)
     ]
 
     # **************************** write ****************************
@@ -262,10 +292,9 @@ def write_macho(p: str):
     d = bytes()
 
     # Write header.
-    h.ncmds = 3
-    h.sizeofcmds = seg.bsize() + sec.bsize() + symtab_cmd.bsize() + dysymtab_cmd.bsize()
+    h.ncmds = 4
+    h.sizeofcmds = seg.bsize() + sec.bsize() + build_cmd.bsize() + symtab_cmd.bsize() + dysymtab_cmd.bsize()
     d += h.pack()
-    dbg(h)
 
     # Write segment.
     seg.cmdsize = seg.bsize() + sec.bsize()
@@ -274,46 +303,42 @@ def write_macho(p: str):
     seg.fileoff = h.sizeofcmds + h.bsize()
     seg.nsects = 1
     d += seg.pack()
-    dbg(seg)
 
     # Write section.
     sec.size = seg.filesize
     sec.offset = seg.fileoff
     sec.reloff = seg.fileoff + seg.filesize
-    sec.nreloc = 2
+    sec.nreloc = len(reloc)
     d += sec.pack()
-    dbg(sec)
+
+    # Write build command.
+    build_cmd.cmdsize = build_cmd.bsize()
+    d += build_cmd.pack()
 
     # Write symtab.
     symtab_cmd.cmdsize = symtab_cmd.bsize()
-    symtab_cmd.symoff = sec.bsize() + sum(x.bsize() for x in reloc)
-    symtab_cmd.nsyms = 2
+    symtab_cmd.symoff = h.sizeofcmds + sec.bsize() + sum(x.bsize() for x in reloc)
+    symtab_cmd.nsyms = len(symbols)
     symtab_cmd.stroff = symtab_cmd.symoff + sum(x.bsize() for x in symbols)
     symtab_cmd.strsize = len(str_table)
     d += symtab_cmd.pack()
-    dbg(symtab_cmd)
 
     # Write dysymtab.
     dysymtab_cmd.cmdsize = dysymtab_cmd.bsize()
     d += dysymtab_cmd.pack()
-    dbg(dysymtab_cmd)
 
     # Write code.
     d += code
-    dbg(code)
 
     # Write relocations.
     for x in reloc:
         d += x.pack()
-        dbg(x)
 
     # Write symbol table.
     for x in symbols:
         d += x.pack()
-        dbg(x)
 
     # Write string table.
     d += str_table
-    dbg(str_table)
 
     with open(p, 'wb') as fp: fp.write(d)
