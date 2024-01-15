@@ -1,20 +1,19 @@
 #!/bin/bash
 
-rm out.o
-rm out
+rm eval/*.o eval/out
 
 clear
 
 ./macho.py
 
-otool -h out.o
+otool -h eval/out.o
 
 echo "****************************************************************************"
 
-otool -l out.o
+otool -l eval/out.o
 
 echo "****************************************************************************"
 
 ./link.sh
 
-./out
+./eval/out

@@ -384,4 +384,4 @@ if __name__ == '__main__':
     b.add_string_table(table=['_start', 'helloworld'])
     o = b.build()
 
-    with open('out.o', 'wb') as fp: fp.write(o)
+    with open('eval/out.o', 'wb') as fp: fp.write(o)
