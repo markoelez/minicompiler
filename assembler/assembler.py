@@ -15,7 +15,8 @@ class Assembler:
 
         # tables
         self.symbol_table = {}
-        self.global_symbols = set()
+        self.loc_symbols = set()
+        self.ext_symbols = set()
         self.string_table = {}
 
         # misc. metadata
@@ -40,7 +41,8 @@ class Assembler:
     def _process_directive(self, token: Directive):
         match token.name:
             case '.global':
-                self.global_symbols.add(token.subject)
+                self.loc_symbols.discard(token.subject)
+                self.ext_symbols.add(token.subject)
             case '.align':
                 self.align = int(token.subject)
                 # TODO: update location counter to conform to specified boundary
@@ -54,6 +56,7 @@ class Assembler:
         self.string_table[token.name] = self.stidx
         # string + separator
         self.stidx += len(token.name.encode()) + 1
+        self.loc_symbols.add(token.name)
 
     def _process_binary_op(self, token: BinaryOp):
         match token.name:
@@ -84,7 +87,11 @@ class Assembler:
 
     def _get_symbols(self) -> list[Nlist64]:
         res = []
-        for symbol in self.symbol_table:
+
+        # group local and external symbols together
+        for symbol in list(self.loc_symbols) + list(self.ext_symbols):
+
+            is_local = symbol in self.loc_symbols
 
             x = Nlist64(
                 n_strx=self.string_table[symbol],
@@ -94,7 +101,7 @@ class Assembler:
                 n_value=self.symbol_table[symbol]
             )
 
-            if symbol in self.global_symbols: x.n_type |= N_EXT
+            if not is_local: x.n_type |= N_EXT
 
             res.append(x)
 
@@ -104,6 +111,21 @@ class Assembler:
         return list(self.string_table.keys())
 
     def dump(self, path: str) -> bytes:
+
+        self.dat = bytes([
+            0x20, 0x00, 0x80, 0xd2,
+            0xe1, 0x00, 0x00, 0x10,
+            0xc2, 0x01, 0x80, 0xd2,
+            0x90, 0x00, 0x80, 0xd2,
+            0x01, 0x10, 0x00, 0xd4,
+            0x00, 0x00, 0x80, 0xd2,
+            0x30, 0x00, 0x80, 0xd2,
+            0x01, 0x10, 0x00, 0xd4,
+            0x48, 0x65, 0x6c, 0x6c,
+            0x6f, 0x2c, 0x20, 0x57,
+            0x6f, 0x72, 0x6c, 0x64,
+            0x21, 0x0a, 0x00, 0x00
+        ])
 
         # first pass
         for x in self.tokens: self.process(x)
@@ -123,11 +145,11 @@ class Assembler:
         b.add_build_version_lc(platform=0x1, minos=0xe0000)
         b.add_symtab_lc()
         b.add_dysymtab_lc(
-            ilocalsym=self.ilocalsym,
-            nlocalsym=self.nlocalsym,
-            iextdefsym=self.iextdefsym,
-            nextdefsym=self.nextdefsym,
-            iundefsym=self.iundefsym,
+            ilocalsym=0 if len(self.loc_symbols) > 0 else len(self.ext_symbols),
+            nlocalsym=len(self.loc_symbols),
+            iextdefsym=len(self.loc_symbols),
+            nextdefsym=len(self.ext_symbols),
+            iundefsym=len(self.loc_symbols) + len(self.ext_symbols),
         )
         # ****************** data segments ******************
         b.add_code(dat=self.dat)
@@ -135,7 +157,7 @@ class Assembler:
         b.add_string_table(table=self._get_string_table())
         o = b.build()
 
-        # with open(path, 'wb') as fp: fp.write(o)
+        with open(path, 'wb') as fp: fp.write(o)
 
 
 if __name__ == '__main__':
