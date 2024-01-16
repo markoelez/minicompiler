@@ -39,7 +39,7 @@ class Parser:
     def __init__(self, tokens: list[list[str]]):
         self.tokens = tokens
         self.q = deque(tokens)
-        self.out = []
+        self.out: list = []
 
     def _test(self, f=lambda _: True):
         return self.q and f(self.q[0])

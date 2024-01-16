@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import os
 import sys
-from tokenizer import tokenize, Directive, Label, BinaryOp, UnaryOp
-from macho import MachoObjectBuilder, Nlist64, N_TYPE, N_EXT
+from assembler.tokenizer import tokenize, Directive, Label, BinaryOp, UnaryOp
+from assembler.macho import MachoObjectBuilder, Nlist64, N_TYPE, N_EXT
 
 
 class Assembler:
@@ -110,7 +110,7 @@ class Assembler:
     def _get_string_table(self) -> list[str]:
         return list(self.string_table.keys())
 
-    def dump(self, path: str) -> bytes:
+    def dump(self, path: str):
 
         self.dat = bytes([
             0x20, 0x00, 0x80, 0xd2,

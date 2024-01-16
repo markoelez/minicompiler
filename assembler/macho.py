@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import struct
 from dataclasses import dataclass, field
 from pprint import pprint
@@ -65,6 +64,8 @@ def dbg(o):
     pprint(o)
     print('*' * 120)
 
+
+# mypy: disable-error-code="valid-type"
 
 @dataclass(repr=False)
 class Header(Component):
@@ -262,9 +263,9 @@ class MachoObjectBuilder:
         self.code = dat
         self.data_segments.append(ds)
 
-    def add_symbol_table(self, symbols: list[Nlist64] = []):
-        self.symbols.extend(symbols)
-        self.data_segments.extend(symbols)
+    def add_symbol_table(self, symbols: list[Nlist64] | None = None):
+        self.symbols.extend(symbols or [])
+        self.data_segments.extend(symbols or [])
 
     def add_string_table(self, table: list[str]):
         ds = StringTableSegment(table)
@@ -274,7 +275,7 @@ class MachoObjectBuilder:
     def build(self) -> bytes:
 
         res = bytes()
-        components = []
+        components: list[Component] = []
 
         # **************************** write header ****************************
         assert self.header is not None
