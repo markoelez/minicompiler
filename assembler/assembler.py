@@ -24,13 +24,6 @@ class Assembler:
         self.stidx = 1
         self.align = 4
 
-        # dsymtab metadata
-        self.ilocalsym: int = 0
-        self.nlocalsym: int = 0
-        self.iextdefsym: int = 0
-        self.nextdefsym: int = 0
-        self.iundefsym: int = 0
-
         # util
         self.is_immediate = lambda x: x[0] == '#'
         self.is_register = lambda x: x[0] == 'X'
