@@ -53,7 +53,7 @@ class Parser:
         self.out.append(Directive(name, sub))
 
     def _label(self):
-        name = self._consume()[0]
+        name = self._consume()[0][:-1]
         self.out.append(Label(name))
 
     def _statement(self):
