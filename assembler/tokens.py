@@ -80,7 +80,6 @@ class ADR(Instruction):
     # ISA page 1269
     def decode(self) -> bytes:
         # TODO: differentiate between MOV variants
-
         out = 0
         out |= (self.imm & 0x3) << 29            # [29-30] 2-bit lower immediate
         out |= opcodes['adr'] << 24              # [24-28] opcode
