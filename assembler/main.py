@@ -41,7 +41,7 @@ class Assembler:
                 self.align = int(token.subject)
                 # TODO: update location counter to conform to specified boundary
             case '.ascii':
-                s = token.subject.encode()
+                s = (token.subject + '\0').encode()
                 self.lc += len(s)
                 if self.first_pass: return
                 p = ' '.join(f'0x{b:02X}' for b in s)

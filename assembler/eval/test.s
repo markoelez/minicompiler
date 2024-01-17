@@ -7,10 +7,10 @@
 
 // Entry point of the program
 _start:
-    // Prepare for the write syscall to print "Hello World!"
+    // Prepare for the write syscall to print a string
     mov     X0, #1             // Set X0 to 1: file descriptor 1 (stdout)
-    adr     X1, helloworld     // Load the address of the helloworld string into X1
-    mov     X2, #14            // Set X2 to 14: length of the "Hello, World!\n" string
+    adr     X1, data           // Load the address of the data section into X1
+    mov     X2, #38            // Set X2 to 38: length of the string to be printed
     mov     X16, #4            // Set X16 to 4: syscall number for write operation
     svc     #0x80              // Make a syscall: this line asks the kernel to perform the write
 
@@ -20,5 +20,5 @@ _start:
     svc     #0x80              // Make a syscall: this line asks the kernel to terminate the program
 
 // Data section of the program
-helloworld:      
-    .ascii  "Hello, World!\n"  // Define the "Hello, World!\n" string
+data:      
+    .ascii  "Hello, world! Everything is working!"
