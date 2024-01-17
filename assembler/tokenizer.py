@@ -1,6 +1,6 @@
 import re
 from collections import deque
-from dataclasses import dataclass
+from assembler.tokens import Token, Directive, Label, MOV, ADR, SVC
 
 
 def lex(s: str) -> list[list[str]]:
@@ -11,35 +11,11 @@ def lex(s: str) -> list[list[str]]:
     return [tokenize(line) for line in lines if line.strip()]
 
 
-@dataclass(frozen=True)
-class Label:
-    name: str
-
-
-@dataclass(frozen=True)
-class Directive:
-    name: str
-    subject: str
-
-
-@dataclass(frozen=True)
-class BinaryOp:
-    name: str
-    s1: str
-    s2: str
-
-
-@dataclass(frozen=True)
-class UnaryOp:
-    name: str
-    s1: str
-
-
 class Parser:
     def __init__(self, tokens: list[list[str]]):
-        self.tokens = tokens
-        self.q = deque(tokens)
-        self.out: list = []
+        self.tokens: list[list[str]] = tokens
+        self.q: deque[list[str]] = deque(tokens)
+        self.out: list[Token] = []
 
     def _test(self, f=lambda _: True):
         return self.q and f(self.q[0])
@@ -57,12 +33,17 @@ class Parser:
         self.out.append(Label(name))
 
     def _statement(self):
+        ops = {
+            'mov': MOV,
+            'adr': ADR,
+            'svc': SVC
+        }
         if self._test(lambda x: len(x) == 3):
             name, s1, s2 = self._consume()
-            self.out.append(BinaryOp(name, s1, s2))
+            self.out.append(ops[name](name, s1, s2))
         elif self._test(lambda x: len(x) == 2):
             name, s1 = self._consume()
-            self.out.append(UnaryOp(name, s1))
+            self.out.append(ops[name](name, s1))
 
     def _line(self):
         if self._test(lambda x: x[0].startswith('.')):
@@ -71,12 +52,12 @@ class Parser:
             return self._label()
         return self._statement()
 
-    def parse(self):
+    def parse(self) -> list[Token]:
         while self._test(): self._line()
         return self.out
 
 
-def tokenize(asm: str):
+def tokenize(asm: str) -> list[Token]:
 
     a = lex(asm)
 

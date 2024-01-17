@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import os
 import sys
-from assembler.tokenizer import tokenize, Directive, Label, BinaryOp, UnaryOp
+from assembler.tokenizer import tokenize
+from assembler.tokens import Directive, Label, Instruction, MOV, ADR, SVC
 from assembler.macho import MachoObjectBuilder, Nlist64, N_TYPE, N_EXT
 
 
@@ -42,6 +43,10 @@ class Assembler:
             case '.ascii':
                 s = token.subject.encode()
                 self.lc += len(s)
+                if self.first_pass: return
+                p = ' '.join(f'0x{b:02X}' for b in s)
+                print(f'{p:<{10}}')
+                self.dat += s
 
     def _process_label(self, token: Label):
         if not self.first_pass: return
@@ -51,21 +56,34 @@ class Assembler:
         self.stidx += len(token.name.encode()) + 1
         self.loc_symbols.add(token.name)
 
-    def _process_binary_op(self, token: BinaryOp):
-        match token.name:
-            case 'mov':
+    # TODO
+    def _process_instruction(self, token: Instruction):
+
+        out = bytes()
+        match token:
+            case MOV():
+                out = token.decode()
                 self.lc += 4
-            case 'adr':
-                # second pass
-                if token.s2 in self.symbol_table:
-                    # TODO
-                    pass
+            case ADR():
+
+                # first pass
+                if token.s2 not in self.symbol_table: return
+
+                # calculate offset
+                addr = self.symbol_table[token.s2]
+                imm = addr - self.lc + 4
+                token.imm = imm  # type: ignore
+
+                out = token.decode()
+                self.lc += 4
+            case SVC():
+                out = token.decode()
                 self.lc += 4
 
-    def _process_unary_op(self, token: UnaryOp):
-        match token.name:
-            case 'svc':
-                self.lc += 4
+        if not self.first_pass:
+            p = ' '.join(f'0x{b:02X}' for b in out)
+            print(f'{p:<{10}} ---- {token}')
+            self.dat += out
 
     def process(self, token):
         match token:
@@ -73,10 +91,8 @@ class Assembler:
                 return self._process_directive(token)
             case Label():
                 return self._process_label(token)
-            case BinaryOp():
-                return self._process_binary_op(token)
-            case UnaryOp():
-                return self._process_unary_op(token)
+            case Instruction():
+                return self._process_instruction(token)
 
     def _get_symbols(self) -> list[Nlist64]:
         res = []
@@ -105,24 +121,10 @@ class Assembler:
 
     def dump(self, path: str):
 
-        self.dat = bytes([
-            0x20, 0x00, 0x80, 0xd2,
-            0xe1, 0x00, 0x00, 0x10,
-            0xc2, 0x01, 0x80, 0xd2,
-            0x90, 0x00, 0x80, 0xd2,
-            0x01, 0x10, 0x00, 0xd4,
-            0x00, 0x00, 0x80, 0xd2,
-            0x30, 0x00, 0x80, 0xd2,
-            0x01, 0x10, 0x00, 0xd4,
-            0x48, 0x65, 0x6c, 0x6c,
-            0x6f, 0x2c, 0x20, 0x57,
-            0x6f, 0x72, 0x6c, 0x64,
-            0x21, 0x0a, 0x00, 0x00
-        ])
-
         # first pass
         for x in self.tokens: self.process(x)
         self.first_pass = False
+        self.lc = 0
 
         # second pass
         for x in self.tokens: self.process(x)
@@ -155,9 +157,9 @@ class Assembler:
 
 if __name__ == '__main__':
 
-    assert len(sys.argv) > 1
+    assert len(sys.argv) == 3
 
-    p = sys.argv[1]
+    p, o = sys.argv[1], sys.argv[2]
 
     assert p.endswith('.s')
     assert os.path.isfile(p)
@@ -168,7 +170,4 @@ if __name__ == '__main__':
 
         tokens = tokenize(s)
 
-        for x in tokens: print(x)
-        print()
-
-        Assembler(tokens).dump('test123.o')
+        Assembler(tokens).dump(o)
