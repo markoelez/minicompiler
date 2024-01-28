@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from lexer import lex
 from parser import Parser  # pylint: disable=deprecated-module
+from tree import gen_asm
 
 
 def read(path: str) -> str:
@@ -18,12 +19,24 @@ if __name__ == '__main__':
     fn = 'eval/test.c'
 
     s = read(fn)
-    print(s)
 
+    print(s)
     print('*' * 80)
 
     # lex: str -> list[Tok]
     a = lex(s)
 
+    for x in a: print(x)
+    print('*' * 80)
+
     # parse: list[Tok] -> AST
-    Parser(a).build()
+    ast = Parser(a).build()
+
+    ast.print()
+    print('*' * 80)
+
+    # AST -> asm
+    asm = gen_asm(ast)
+
+    print(asm)
+    print('*' * 80)

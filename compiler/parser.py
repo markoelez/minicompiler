@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from copy import deepcopy
 from collections import deque
-from lexer import Tok, TokType
+from tokens import Tok, TokType
 from tree import ASTNode, ROOT, DECL, NUMBER, EXPR, RETURN, VAR, ADDITION, FUNC
 from contextlib import contextmanager
 
@@ -9,9 +9,6 @@ from contextlib import contextmanager
 class Parser:
     def __init__(self, tokens: list[Tok]):
         self.tokens = deque(tokens)
-
-        for x in self.tokens: print(x)
-        print('*' * 80)
 
     @contextmanager
     def _preserving_state(self):
@@ -45,8 +42,6 @@ class Parser:
             with self._preserving_state():
                 root.children.append(self._parse_declaration())
 
-        root.print()
-
         return root
 
     # *************** expressions ***************
@@ -55,18 +50,19 @@ class Parser:
 
         root = EXPR()
 
+        ntypes = {TokType.INT}
+
         # single number expression: i.e. '4;'
         def _parse_number() -> NUMBER:
             a = self._consume(lambda x: x.type == TokType.NUM)
             return NUMBER(val=int(a.data))
 
         # addition expression: i.e. '1 + 3'
-        def _parse_addition() -> ADDITION:
-            root = ADDITION()
-            root.ops.append(_parse_number())
-            while self._test(lambda x: x.type == TokType.PLUS):
-                self._consume(lambda x: x.type == TokType.PLUS)
-                root.ops.append(_parse_number())
+        def _parse_addition() -> ADDITION | NUMBER:
+            root = ADDITION(op1=_parse_number())
+            if self._test(lambda x: x.type == TokType.SEMIC): return root.op1
+            self._consume(lambda x: x.type == TokType.PLUS)
+            root.op2 = _parse_addition()
             return root
 
         while self._test(lambda x: x.type != TokType.SEMIC):
@@ -89,7 +85,7 @@ class Parser:
     def _parse_function(self) -> FUNC:
         root = FUNC()
 
-        dtypes = {TokType.INT}
+        dtypes = {TokType.INT, TokType.BOOL}
 
         def _parse_args():
             res = []
