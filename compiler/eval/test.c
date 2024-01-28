@@ -1,5 +1,4 @@
-
-
-int main() {
-    return 1 + 2 + 3;
+int f(int x) {
+    int result = (x + 42);
+    return result;
 }

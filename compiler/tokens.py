@@ -13,7 +13,7 @@ class TokType(Enum):
     INT = TokTypeVal('INT', 'int')
     BOOL = TokTypeVal('BOOL', 'bool')
     VOID = TokTypeVal('VOID', 'void')
-    RETURN = TokTypeVal('RETURN', 'return')
+    ReturnStmt = TokTypeVal('ReturnStmt', 'return')
 
     # block separators
     LPAREN = TokTypeVal('LPAREN', r'\(')
@@ -27,10 +27,11 @@ class TokType(Enum):
     COMMA = TokTypeVal('COMMA', r',')
     SEMIC = TokTypeVal('SEMICOLON', r';')
     PLUS = TokTypeVal('PLUS', r'\+')
+    EQ = TokTypeVal('EQ', r'\=')
 
     # atoms
     IDENT = TokTypeVal('IDENT', r'[_a-zA-Z][_a-zA-Z0-9]*')
-    NUM = TokTypeVal('NUMBER', r'[0-9]+')
+    NUM = TokTypeVal('NumExpr', r'[0-9]+')
     DOT = TokTypeVal('DOT', r'\.')
     STR = TokTypeVal('STRING', r'"([^"\\]|\\.)*"')
 

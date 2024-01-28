@@ -188,7 +188,7 @@ missing-member-hint-distance=1
 missing-member-max-choices=1
 
 
-[VARIABLES]
+[VarDeclIABLES]
 
 # List of additional names supposed to be defined in builtins. Remember that
 # you should avoid to define new builtins when possible.
