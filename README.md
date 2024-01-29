@@ -61,6 +61,9 @@ ARM:
 - https://developer.arm.com/documentation/102374/latest/
 - http://163.238.35.161/~zhangs/arm64simulator/
 
+Compilation:
+- https://clang.llvm.org/docs/IntroductionToTheClangAST.html
+
 Mach-O: 
 - https://alexdremov.me/mystery-of-mach-o-object-file-builders/
 - https://github.com/alexdremov/MachOBuilder/tree/main
