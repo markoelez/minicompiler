@@ -6,14 +6,6 @@ from enum import Enum
 from collections import defaultdict
 
 
-# reference:
-# https://alexdremov.me/mystery-of-mach-o-object-file-builders/
-# https://github.com/alexdremov/MachOBuilder/tree/main
-# https://github.com/aidansteele/osx-abi-macho-file-format-reference?ref=alexdremov.me
-# https://en.wikipedia.org/wiki/Mach-O#Mach-O_file_layout
-# https://medium.com/@travmath/understanding-the-mach-o-file-format-66cf0354e3f4
-
-
 # Constants.
 LC_SEGMENT_64 = 0x00000019              # LC_SEGMENT_64 command type
 LC_BUILD_VERSION = 0x32

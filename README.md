@@ -54,3 +54,15 @@ The raw C program goes through the following distinct transformations:
 
 (linker -- uses GNU linker)
 - Mach-O object file -> Mach-O executable file
+
+### Reference
+
+ARM:
+- https://developer.arm.com/documentation/102374/latest/
+
+Mach-O: 
+- https://alexdremov.me/mystery-of-mach-o-object-file-builders/
+- https://github.com/alexdremov/MachOBuilder/tree/main
+- https://github.com/aidansteele/osx-abi-macho-file-format-reference?ref=alexdremov.me
+- https://en.wikipedia.org/wiki/Mach-O#Mach-O_file_layout
+- https://medium.com/@travmath/understanding-the-mach-o-file-format-66cf0354e3f4
