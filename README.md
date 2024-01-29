@@ -47,8 +47,10 @@ The raw C program goes through the following distinct transformations:
 - C program -> C language tokens
 - C language tokens -> AST
 - AST -> ARM64 assembly
+
 (assembler)
 - ARM64 assembly -> ARM64 tokens
 - ARM64 tokens -> Mach-O object file
+
 (linker -- uses GNU linker)
 - Mach-O object file -> Mach-O executable file
