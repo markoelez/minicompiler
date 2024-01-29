@@ -14,9 +14,9 @@ def compile(s: str, verbose: bool = False) -> str:  # pylint: disable=redefined-
     # lex: str -> list[Tok]
     a = lex(s)
 
-    if verbose:
-        for x in a: print(x)
-        print('*' * 80)
+    #if verbose:
+    #    for x in a: print(x)
+    #    print('*' * 80)
 
     # parse: list[Tok] -> AST
     ast = Parser(a).build()
@@ -27,10 +27,6 @@ def compile(s: str, verbose: bool = False) -> str:  # pylint: disable=redefined-
 
     # AST -> asm
     asm = gen_asm(ast)
-
-    if verbose:
-        print(asm)
-        print('*' * 80)
 
     return asm
 

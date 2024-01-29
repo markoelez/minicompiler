@@ -34,7 +34,7 @@ if __name__ == '__main__':
     print('*' * 80)
 
     # C program -> ARM assembly IR (compilation)
-    asm = compile(s)
+    asm = compile(s, verbose=True)
     print(asm)
     print('*' * 80)
 
