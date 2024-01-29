@@ -1,13 +1,20 @@
+import random
 from dataclasses import dataclass, field
 
 
 class RegisterAllocator:
     def __init__(self):
-        self.regs = {f'X{i}' for i in range(31)}
+        self.regs = [f'X{i}' for i in range(31)]
+        self.free = set(self.regs)
         self.h = {}
 
     def get_free(self) -> str:
-        return self.regs.pop()
+        i = random.randint(0, len(self.regs) - 1)
+        reg = self.regs[i]
+        self.free.remove(reg)
+        self.regs[i], self.regs[-1] = self.regs[-1], self.regs[i]
+        self.regs.pop()
+        return reg
 
     def alloc_var(self, var: str) -> str:
         reg = self.get_free()

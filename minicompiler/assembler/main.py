@@ -2,12 +2,12 @@
 import os
 import sys
 from minicompiler.assembler.tokenizer import tokenize
-from minicompiler.assembler.tokens import Directive, Label, Instruction, MOV, ADR, SVC, ADD, RET
+from minicompiler.assembler.tokens import Directive, Label, Instruction, ADR
 from minicompiler.assembler.macho import MachoObjectBuilder, Nlist64, N_TYPE, N_EXT
 
 
 class Assembler:
-    def __init__(self, tokens):
+    def __init__(self, tokens, verbose: bool = False):
         # input
         self.tokens = tokens
 
@@ -15,10 +15,10 @@ class Assembler:
         self.dat: bytes = bytes()
 
         # tables
-        self.symbol_table = {}
-        self.loc_symbols = set()
-        self.ext_symbols = set()
-        self.string_table = {}
+        self.symbol_table: dict[str, int] = {}
+        self.loc_symbols: set[str] = set()
+        self.ext_symbols: set[str] = set()
+        self.string_table: dict[str, int] = {}
 
         # misc. metadata
         self.lc = 0
@@ -31,6 +31,7 @@ class Assembler:
         self.is_label = lambda x: x.isalpha() and not self.is_immediate(x) and not self.is_register(x)
 
         self.first_pass = True
+        self.verbose = verbose
 
     def _process_directive(self, token: Directive):
         match token.name:
@@ -45,7 +46,7 @@ class Assembler:
                 self.lc += len(s)
                 if self.first_pass: return
                 p = ' '.join(f'0x{b:02X}' for b in s)
-                print(f'{p:<{10}}')
+                if self.verbose: print(f'{p:<{10}}')
                 self.dat += s
 
     def _process_label(self, token: Label):
@@ -59,18 +60,9 @@ class Assembler:
     # TODO
     def _process_instruction(self, token: Instruction):
 
-        out = bytes()
+        # preprocessing
         match token:
-            case RET():
-                pass
-            case MOV():
-                out = token.decode()
-                self.lc += 4
-            case ADD():
-                out = token.decode()
-                self.lc += 4
             case ADR():
-
                 # first pass
                 if token.s2 not in self.symbol_table: return
 
@@ -79,15 +71,12 @@ class Assembler:
                 imm = addr - self.lc + 4
                 token.imm = imm  # type: ignore
 
-                out = token.decode()
-                self.lc += 4
-            case SVC():
-                out = token.decode()
-                self.lc += 4
+        out: bytes = token.decode()  # type: ignore[assignment]
+        self.lc += 4
 
         if not self.first_pass:
             p = ' '.join(f'0x{b:02X}' for b in out)
-            print(f'{p:<{10}} ---- {token}')
+            if self.verbose: print(f'{p:<{10}} ---- {token}')
             self.dat += out
 
     def process(self, token):
