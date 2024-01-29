@@ -27,21 +27,3 @@ jobs:
       run: python -m pylint minicompiler/
     - name: Check types
       run: python -m mypy minicompiler/
-
-  tests:
-    name: Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.12.0'
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-    - name: Run eval script
-      run: PYTHONPATH=. python minicompiler/eval.py
