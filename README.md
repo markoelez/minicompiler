@@ -17,6 +17,20 @@ int _start() {
         return result;
     }
 ********************************************************************************
+|-Root()
+    |-FunctionDecl(rtype=T(type=<TokType.INT>, data='int'), ident=_start)
+        |-CompoundStmt()
+            |-DeclStmt()
+                |-VarDecl(type='int', ident='x')
+                    |-NumExpr(val=3)
+            |-DeclStmt()
+                |-VarDecl(type='int', ident='result')
+                    |-AddOp()
+                        |-DeclRefExpr(ident='x')
+                        |-NumExpr(val=42)
+            |-ReturnStmt()
+                |-DeclRefExpr(ident='result')
+********************************************************************************
 .global _start
 _start:
 MOV X16, #3
