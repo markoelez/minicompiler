@@ -6,15 +6,17 @@ from minicompiler.assembler.main import Assembler
 
 if __name__ == '__main__':
 
+    print('*' * 80)
+
+    # raw C program
     s = '''
     int _start() {
         int x = 3;
         int result = x + 42;
         return result;
     }
-    '''
+    '''.strip()
 
-    # raw C program
     print(s)
     print('*' * 80)
 
@@ -33,3 +35,4 @@ if __name__ == '__main__':
     # ASM tokens -> binary
     o = 'tmp9.o'
     Assembler(tokens).dump(o)
+    print('*' * 80)
