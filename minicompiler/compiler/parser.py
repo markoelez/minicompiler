@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 from copy import deepcopy
 from collections import deque
-from tokens import Tok, TokType
-from tree import ASTNode, Root, Decl, NumExpr, DeclRefExpr, ParenExpr, Expr, ReturnStmt, VarDecl, BinOp, FunctionDecl, AddOp, DeclStmt
+from minicompiler.compiler.tokens import Tok, TokType
+from minicompiler.compiler.tree import ASTNode, Root, Decl, NumExpr, DeclRefExpr, ParenExpr, Expr, ReturnStmt, VarDecl, BinOp, FunctionDecl, AddOp, DeclStmt
 from contextlib import contextmanager
 
 

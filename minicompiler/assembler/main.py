@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import os
 import sys
-from assembler.tokenizer import tokenize
-from assembler.tokens import Directive, Label, Instruction, MOV, ADR, SVC
-from assembler.macho import MachoObjectBuilder, Nlist64, N_TYPE, N_EXT
+from minicompiler.assembler.tokenizer import tokenize
+from minicompiler.assembler.tokens import Directive, Label, Instruction, MOV, ADR, SVC, ADD, RET
+from minicompiler.assembler.macho import MachoObjectBuilder, Nlist64, N_TYPE, N_EXT
 
 
 class Assembler:
@@ -61,7 +61,12 @@ class Assembler:
 
         out = bytes()
         match token:
+            case RET():
+                pass
             case MOV():
+                out = token.decode()
+                self.lc += 4
+            case ADD():
                 out = token.decode()
                 self.lc += 4
             case ADR():
@@ -140,7 +145,7 @@ class Assembler:
         b.add_build_version_lc(platform=0x1, minos=0xe0000)
         b.add_symtab_lc()
         b.add_dysymtab_lc(
-            ilocalsym=0 if len(self.loc_symbols) > 0 else len(self.ext_symbols),
+            ilocalsym=0,
             nlocalsym=len(self.loc_symbols),
             iextdefsym=len(self.loc_symbols),
             nextdefsym=len(self.ext_symbols),

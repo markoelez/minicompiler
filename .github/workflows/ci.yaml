@@ -24,6 +24,6 @@ jobs:
         python -m pip install pylint
         python -m pip install mypy
     - name: Lint
-      run: python -m pylint assembler/
+      run: python -m pylint minicompiler/
     - name: Check types
-      run: python -m mypy assembler/
+      run: python -m mypy minicompiler/

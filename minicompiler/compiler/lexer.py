@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import re
-from tokens import Tok, TokType
+from minicompiler.compiler.tokens import Tok, TokType
 
 
 def lex(s: str) -> list[Tok]:

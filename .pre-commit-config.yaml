@@ -3,13 +3,13 @@ repos:
     hooks:
       - id: lint
         name: lint
-        entry: env PYTHONPATH="." python -m pylint assembler/
+        entry: env PYTHONPATH="." python -m pylint minicompiler/
         language: system
         always_run: true
         pass_filenames: false
       - id: mypy
         name: mypy
-        entry: env PYTHONPATH="." python -m mypy assembler/
+        entry: env PYTHONPATH="." python -m mypy minicompiler/
         language: system
         always_run: true
         pass_filenames: false

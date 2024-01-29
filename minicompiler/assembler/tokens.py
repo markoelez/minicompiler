@@ -31,6 +31,7 @@ class Instruction(Token):
 opcodes = {
     'movz': 0b100101,
     'adr': 0b10000,
+    'add': 0b10001011001,
 }
 
 registers = {
@@ -50,7 +51,21 @@ registers = {
     'X13': 0b01101,
     'X14': 0b01110,
     'X15': 0b01111,
-    'X16': 0b10000
+    'X16': 0b10000,
+    'X17': 0b10001,
+    'X18': 0b10010,
+    'X19': 0b10011,
+    'X20': 0b10100,
+    'X21': 0b10101,
+    'X22': 0b10110,
+    'X23': 0b10111,
+    'X24': 0b11000,
+    'X25': 0b11001,
+    'X26': 0b11010,
+    'X27': 0b11011,
+    'X28': 0b11100,
+    'X29': 0b11101,
+    'X30': 0b11110
 }
 
 
@@ -87,6 +102,22 @@ class ADR(Instruction):
         out |= registers[self.s1]                # [0-4] destination register
         return struct.pack('<I', out)
 
+
+@dataclass
+class ADD(Instruction):
+    s1: str
+    s2: str
+    dst: str
+
+    # ISA page 1254
+    def decode(self) -> bytes:
+        out = 0
+        out |= opcodes['add'] << 21      # [21-31] opcode
+        out |= registers[self.s2] << 16  # [16-20] src register 2
+        out |= registers[self.s1] << 5   # [5-9] src register 1
+        out |= registers[self.dst]       # [0-4] destination register
+        return struct.pack('<I', out)
+
 # ***************************** unary ops *****************************
 
 
@@ -104,3 +135,9 @@ class SVC(Instruction):
         out |= (imm & 0x7FFF) << 5
         out |= 0b00001
         return struct.pack('<I', out)
+
+
+@dataclass
+class RET(Instruction):
+    def decode(self) -> bytes:
+        return bytes()

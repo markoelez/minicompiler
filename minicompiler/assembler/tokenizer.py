@@ -1,6 +1,6 @@
 import re
 from collections import deque
-from assembler.tokens import Token, Directive, Label, MOV, ADR, SVC
+from minicompiler.assembler.tokens import Token, Directive, Label, MOV, ADR, SVC, RET, ADD
 
 
 def lex(s: str) -> list[list[str]]:
@@ -35,15 +35,15 @@ class Parser:
     def _statement(self):
         ops = {
             'mov': MOV,
+            'MOV': MOV,
             'adr': ADR,
-            'svc': SVC
+            'add': ADD,
+            'svc': SVC,
+            'ADD': ADD,
+            'RET': RET
         }
-        if self._test(lambda x: len(x) == 3):
-            name, s1, s2 = self._consume()
-            self.out.append(ops[name](name, s1, s2))
-        elif self._test(lambda x: len(x) == 2):
-            name, s1 = self._consume()
-            self.out.append(ops[name](name, s1))
+        op = self._consume()
+        self.out.append(ops[op[0]](*op))
 
     def _line(self):
         if self._test(lambda x: x[0].startswith('.')):
