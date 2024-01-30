@@ -12,11 +12,11 @@ Produces the following visual output:
 ```sh
 ********************************************************************************
 int _start() {
-        int x = 3;
-        int y = 4;
-        int res = x + y;
-        return res;
-    }
+    int x = 3;
+    int y = 4;
+    int res = x + y;
+    return res;
+}
 ********************************************************************************
 |-Root()
     |-FunctionDecl(rtype=T(type=<TokType.INT>, data='int'), ident=_start)
