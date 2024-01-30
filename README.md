@@ -86,6 +86,13 @@ Mach-O:
 - https://medium.com/@travmath/understanding-the-mach-o-file-format-66cf0354e3f4
 
 ### Todo
-- support multiple functions
-    - populate symbol + string tables
+- better support for functions
+    - support multiple functions + populate symbol/string tables
+    - support stack frames
+    - support calling functions with arguments
 - put raw data into data section in object file
+- support more instructions
+    - conditionals
+    - other binops (MUL, SUB, ...)
+    - pointers, malloc, etc.
+- support stdlib
