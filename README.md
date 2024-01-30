@@ -84,3 +84,8 @@ Mach-O:
 - https://github.com/aidansteele/osx-abi-macho-file-format-reference?ref=alexdremov.me
 - https://en.wikipedia.org/wiki/Mach-O#Mach-O_file_layout
 - https://medium.com/@travmath/understanding-the-mach-o-file-format-66cf0354e3f4
+
+### Todo
+- support multiple functions
+    - populate symbol + string tables
+- put raw data into data section in object file
