@@ -26,8 +26,9 @@ if __name__ == '__main__':
     s = '''
     int _start() {
         int x = 3;
-        int result = x + 42;
-        return result;
+        int y = 4;
+        int res = x + y;
+        return res;
     }
     '''.strip()
     print(s)
@@ -52,4 +53,4 @@ if __name__ == '__main__':
     run_asserting_success(cmd, 0)
 
     cmd = [f"./{bin_file}"]
-    run_asserting_success(cmd, 45)
+    run_asserting_success(cmd, 7)
